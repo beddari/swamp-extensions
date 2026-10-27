@@ -1,0 +1,82 @@
+{
+  "extension": "@beddari/gpodder",
+  "version": "2026.10.27.1",
+  "reviewedAt": "2026-10-27T00:06:21Z",
+  "dimensions": [
+    {
+      "id": "credentials-secrets",
+      "verdict": "pass",
+      "note": "API keys (transcriber apiKey, enricher apiKey) are sensitive and accept only vault references; the enricher otherwise defers to the SDK's env/profile lookup. gPodder feed passwords are read only to fetch the feed, sent to the feed's own origin only (dropped on cross-origin or https->http redirects, sent to an enclosure only on that origin), never recorded, masked in errors; URLs recorded without userinfo; notes omit media URLs (which carry private-feed tokens) unless includeAudioUrl. Unit tests and the smoke run assert no password or key reaches records, logs or exports."
+    },
+    {
+      "id": "logging-quality",
+      "verdict": "pass",
+      "note": "Structured placeholders throughout; info on entry and completion; each feedHealth error/warning and each given-up episode logged at warning; no secret in any log property."
+    },
+    {
+      "id": "error-handling",
+      "verdict": "pass",
+      "note": "Failures throw before records: listening writes its page before the record, the transcriber writes WebVTT before the transcript it skips on, downloads writes the cursor last, a cancelled feedHealth records nothing. HTTP errors carry status and a masked body excerpt. Refusal, max_tokens and schema mismatch from Claude fail loudly; oversized prompts fail instead of being cut. Export skips a note it cannot write with the reason and still records the rest."
+    },
+    {
+      "id": "testing-completeness",
+      "verdict": "pass",
+      "note": "49 unit tests (fixture gPodder v8 database built with gPodder's own DDL, fake fetch, fake runner, fake Claude client) cover success and failure paths of every method, both reports and the review findings; smoke/run.sh runs 24 checks against a real swamp with a local feed server and a stand-in streaming Anthropic API, including a failed transcription retried on the next run."
+    },
+    {
+      "id": "idempotency-resilience",
+      "verdict": "pass",
+      "note": "Transcribe skips the same guid/size-on-disk/engine/model; enrich skips the same guid/transcript/requested model, so a fallback answer does not re-bill; export rewrites only changed notes and moves retitled ones. downloads with pendingFor returns an episode until every named definition has its record, up to maxAttempts, then reports gaveUp; ingest jobs iterate only this run's episode records, so overlapping runs do not trade batches. Adversarial review findings 1, 2, 7, 9 and 10 fixed and tested."
+    },
+    {
+      "id": "api-contracts",
+      "verdict": "pass",
+      "note": "Anthropic: official SDK 0.133.0, request body type-checked against the SDK's own types and verified over the wire in smoke; structured output schema has additionalProperties false/required on every object; the SDK retries 429/5xx itself. OpenAI-compatible /audio/transcriptions: multipart, verbose_json + segment timestamps, size checked before upload; a 429/5xx fails the step and pendingFor retries it on a later run rather than backing off in-method. Feeds: manual redirects (10 hops), HEAD with ranged-GET fallback, capped body reads."
+    },
+    {
+      "id": "resource-management",
+      "verdict": "pass",
+      "note": "Database handles close on every path (withLibrary/finally); the whisper temp directory is removed in finally; redirect, HEAD and capped-read bodies are cancelled; subprocesses run with a timeout and the run's abort signal; the gPodder hook reaps its child and starts no second run while one is going."
+    },
+    {
+      "id": "published-surface-hygiene",
+      "verdict": "pass",
+      "note": "README, fixtures and smoke use .test/example domains, 127.0.0.1 and placeholder paths; no real hosts, accounts or tokens. The fixture feed password is a marker string asserted absent everywhere."
+    },
+    {
+      "id": "schema-strictness",
+      "verdict": "pass",
+      "note": "All resource schemas are plain z.object without passthrough; schema-write conformance checked for every writeResource call (podcast, episode, episodeList, cursor, downloads, listening, feedHealth, healthCheck, transcript, enrichment, export)."
+    },
+    {
+      "id": "lifetime-gc",
+      "verdict": "pass",
+      "note": "Every resource and file spec sets lifetime infinite with garbageCollection sized to use: 3 for transcripts/enrichments (large, replaced), 5 for episode/podcast snapshots, 10-60 for run summaries."
+    },
+    {
+      "id": "crud-completeness",
+      "verdict": "na",
+      "note": "No model manages an external resource's lifecycle: the library reads gPodder read-only, the transcriber and enricher derive data. There is nothing to create, update or delete."
+    },
+    {
+      "id": "preflight-checks",
+      "verdict": "pass",
+      "note": "transcribe (the only method with an external dependency to verify up front) has engine-ready, labelled live: model file present and both programs run, or the API URL parses. The library's methods are all list kind and its database-readable check runs through swamp model validate. enrich has no check: a missing key is reported by the API on the first call, before anything is written."
+    },
+    {
+      "id": "instance-names",
+      "verdict": "pass",
+      "note": "Prefixed per spec and unique per execution: podcast-<id>, episode-<id>, episodes, cursor, downloads, listening-<week>, feed-<id>, health-check, transcript-<id>, vtt-<id>, enrichment-<id>, export."
+    },
+    {
+      "id": "data-access",
+      "verdict": "pass",
+      "note": "Own state through readResource (cursor, transcript, enrichment, export); other definitions through readModelData and queryData; no direct dataRepository use in methods; reports read their own execution's handles through dataRepository as the report API intends."
+    },
+    {
+      "id": "version-upgrades",
+      "verdict": "na",
+      "note": "First version, 2026.10.27.1; no earlier version exists to upgrade from."
+    }
+  ]
+}

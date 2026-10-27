@@ -1,0 +1,105 @@
+id: 7159c8de-7b9c-4e95-bcbb-075cea621318
+name: "@beddari/gpodder-ingest"
+description: >-
+  Turn gPodder's new downloads into notes. Finds the episodes downloaded since the last run (the library's downloads
+  method and its cursor), transcribes each one, has Claude summarise it and mark its chapters, and writes every
+  enriched episode as a Markdown note into the enricher's exportDir. Uses three definitions by name: gpodder
+  (@beddari/gpodder/library), gpodder-transcriber (@beddari/gpodder/transcriber) and gpodder-enricher
+  (@beddari/gpodder/enricher); create them first. Each job takes only the episodes this run's downloads step
+  returned, so overlapping runs never trade batches. An episode stays due until both the transcriber and the
+  enricher have a record of it: one whose transcription or enrichment failed comes back on later runs, up to
+  maxAttempts, and one enriched from its show notes alone is enriched again once its transcript exists. Work
+  already done is skipped, so a repeated run only does what is missing. Runs hourly as a fallback; the gPodder hook
+  in the README starts it right after a download.
+version: 1
+inputs:
+  properties:
+    backfill:
+      type: integer
+      default: 0
+      description: On the very first run only, also process this many of the newest downloads
+    limit:
+      type: integer
+      default: 10
+      description: Episodes processed at most per run; the rest stay new for the next run
+    transcribe:
+      type: boolean
+      default: true
+      description: Transcribe new episodes; false enriches from show notes only
+    maxAttempts:
+      type: integer
+      default: 3
+      description: Runs an episode is retried in before it is given up on and reported
+    includeTranscript:
+      type: boolean
+      default: false
+      description: Append the timed transcript to each exported note
+trigger:
+  schedule: "17 * * * *"
+jobs:
+  - name: discover
+    description: The episodes gPodder downloaded since the last run.
+    steps:
+      - name: downloads
+        task:
+          type: model_method
+          modelIdOrName: gpodder
+          methodName: downloads
+          inputs:
+            backfill: ${{ inputs.backfill }}
+            limit: ${{ inputs.limit }}
+            maxAttempts: ${{ inputs.maxAttempts }}
+            pendingFor: '${{ inputs.transcribe ? ["gpodder-transcriber", "gpodder-enricher"] : ["gpodder-enricher"] }}'
+  - name: transcribe
+    dependsOn:
+      - job: discover
+        condition:
+          type: succeeded
+    steps:
+      - name: transcribe-${{ self.episode }}
+        description: Speech to text for one episode; skipped when its file was already transcribed the same way.
+        forEach:
+          item: episode
+          in: '${{ data.findBySpec("gpodder", "episode").filter(e, e.tags.?workflowRunId.orValue("") == run.id).map(e, e.attributes.id) }}'
+        concurrency: 1
+        guard: ${{ !inputs.transcribe }}
+        allowFailure: true
+        task:
+          type: model_method
+          modelIdOrName: gpodder-transcriber
+          methodName: transcribe
+          inputs:
+            episodeId: ${{ self.episode }}
+  - name: enrich
+    dependsOn:
+      - job: transcribe
+        condition:
+          type: completed
+    steps:
+      - name: enrich-${{ self.episode }}
+        description: Claude's summary, topics and chapters for one episode; skipped when already done from the same transcript.
+        forEach:
+          item: episode
+          in: '${{ data.findBySpec("gpodder", "episode").filter(e, e.tags.?workflowRunId.orValue("") == run.id).map(e, e.attributes.id) }}'
+        concurrency: 1
+        allowFailure: true
+        task:
+          type: model_method
+          modelIdOrName: gpodder-enricher
+          methodName: enrich
+          inputs:
+            episodeId: ${{ self.episode }}
+  - name: export
+    dependsOn:
+      - job: enrich
+        condition:
+          type: completed
+    steps:
+      - name: notes
+        description: Every enriched episode as a Markdown note in the enricher's exportDir; unchanged notes are left alone.
+        task:
+          type: model_method
+          modelIdOrName: gpodder-enricher
+          methodName: export
+          inputs:
+            includeTranscript: ${{ inputs.includeTranscript }}

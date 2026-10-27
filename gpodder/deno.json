@@ -1,0 +1,18 @@
+{
+  "tasks": {
+    "check": "deno check *.ts",
+    "test": "deno test --allow-env --allow-read --allow-write --allow-net=127.0.0.1",
+    "lint": "deno lint",
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "lineWidth": 80,
+    "exclude": ["CLAUDE.md", ".claude/"]
+  }
+}

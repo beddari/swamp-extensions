@@ -1,0 +1,62 @@
+manifestVersion: 1
+name: "@beddari/gpodder"
+version: "2026.10.27.1"
+license: MIT
+description: >
+  A gPodder podcast library as swamp data, and a pipeline from new downloads
+  to notes: transcripts, Claude's summaries and chapters, Markdown for a
+  personal knowledge base, a weekly listening audit and feed health checks.
+
+  Three model types. `@beddari/gpodder/library` reads gPodder's SQLite
+  database read-only: subscriptions without their credentials, episodes with
+  their files, show notes as Markdown and feed chapters; `downloads` returns
+  what was downloaded since its last run, by a cursor; `listening` records
+  what was played in a window; `feedHealth` fetches every feed, probes its
+  newest enclosures and records incidents (dead, moved, stale, not a feed,
+  no published transcripts, downloads gone or untranscribed), each error and
+  warning also logged. `@beddari/gpodder/transcriber` turns an episode into
+  timed segments and WebVTT with whisper.cpp on the machine or any
+  OpenAI-compatible transcription endpoint. `@beddari/gpodder/enricher` has
+  Claude read the show notes and transcript and return a schema-checked
+  summary, topics, timestamped chapters, key points, cleaned notes and
+  mentions, and exports every enriched episode as a Markdown note with front
+  matter, e.g. into an Obsidian vault or a notes repository.
+
+  Three workflows wire them: `@beddari/gpodder-ingest` (hourly, or from the
+  gPodder hook in the README right after a download), `@beddari/gpodder-feed-health`
+  (daily) and `@beddari/gpodder-weekly-listening` (Sundays), with a listening
+  report and a feed health report. Nothing ever writes to gPodder.
+repository: "https://github.com/beddari/swamp-extensions"
+paths:
+  base: manifest
+models:
+  - library.ts
+  - transcriber.ts
+  - enricher.ts
+workflows:
+  - workflow-7159c8de-7b9c-4e95-bcbb-075cea621318.yaml
+  - workflow-e73b5f77-e171-4dc9-aa51-a14b9d698d8c.yaml
+  - workflow-5de5512d-9f1c-4636-965b-7bd28b2b046d.yaml
+vaults: []
+datastores: []
+reports:
+  - listening_report.ts
+  - feed_health_report.ts
+additionalFiles:
+  - README.md
+  - LICENSE.md
+labels:
+  - gpodder
+  - podcasts
+  - transcripts
+  - whisper
+  - claude
+  - summaries
+  - chapters
+  - obsidian
+  - notes
+  - feeds
+  - rss
+  - health
+  - listening
+dependencies: []

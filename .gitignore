@@ -1,0 +1,7 @@
+# per-extension swamp runtime state and developer-local files
+*/.swamp/
+*/.swamp-sources.yaml
+*/.claude/settings.local.json
+*/.claude/worktrees/
+*.swp
+__pycache__/

@@ -1,0 +1,44 @@
+id: e73b5f77-e171-4dc9-aa51-a14b9d698d8c
+name: "@beddari/gpodder-feed-health"
+description: >-
+  Daily health check of every gPodder subscription. Fetches each feed and probes its newest enclosures, records one
+  feedHealth record per feed and one healthCheck with every incident (unreachable or failing feeds, feeds not RSS or
+  Atom, permanent redirects, stale and empty feeds, dead enclosures, feeds without published transcripts, downloads
+  whose file is gone, and downloads not transcribed when a transcriber is named), logs each error and warning, and
+  renders the feed health report. Uses the gpodder definition (@beddari/gpodder/library). Fails only when failOn
+  says so.
+version: 1
+inputs:
+  properties:
+    transcriber:
+      type: string
+      default: ""
+      description: Name of a @beddari/gpodder/transcriber definition; downloads it has not transcribed are reported
+    enclosures:
+      type: integer
+      default: 1
+      description: Newest enclosures probed per feed
+    staleDays:
+      type: integer
+      default: 120
+      description: A feed whose newest episode is older than this many days is stale
+    failOn:
+      type: string
+      enum: [none, error, warning]
+      default: none
+      description: Fail the run on an incident of at least this severity, after recording everything
+trigger:
+  schedule: "0 6 * * *"
+jobs:
+  - name: check
+    steps:
+      - name: feeds
+        task:
+          type: model_method
+          modelIdOrName: gpodder
+          methodName: feedHealth
+          inputs:
+            transcriber: ${{ inputs.transcriber }}
+            enclosures: ${{ inputs.enclosures }}
+            staleDays: ${{ inputs.staleDays }}
+            failOn: ${{ inputs.failOn }}

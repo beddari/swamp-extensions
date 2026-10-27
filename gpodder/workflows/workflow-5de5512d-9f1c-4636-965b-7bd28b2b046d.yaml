@@ -1,0 +1,31 @@
+id: 5de5512d-9f1c-4636-965b-7bd28b2b046d
+name: "@beddari/gpodder-weekly-listening"
+description: >-
+  Every Sunday evening, what was played in gPodder that week: per podcast and per episode, finished or how far,
+  recorded as the week's listening record and rendered by the listening report. With outputDir, the week's page is
+  also written there as YYYY-Www.md, e.g. into a private notes repository. Uses the gpodder definition
+  (@beddari/gpodder/library). gPodder knows positions reached, not time spent, and only what its player reports.
+version: 1
+inputs:
+  properties:
+    days:
+      type: integer
+      default: 7
+      description: Length of the window, ending now
+    outputDir:
+      type: string
+      default: ""
+      description: Directory the week's Markdown page is also written to; nothing is written when empty
+trigger:
+  schedule: "0 20 * * 0"
+jobs:
+  - name: listening
+    steps:
+      - name: week
+        task:
+          type: model_method
+          modelIdOrName: gpodder
+          methodName: listening
+          inputs:
+            days: ${{ inputs.days }}
+            outputDir: ${{ inputs.outputDir }}
